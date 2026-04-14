@@ -1,0 +1,9 @@
+node_modules/
+.next/
+funmarket.db
+*.tsbuildinfo
+next-env.d.ts
+.env.local
+.env*.local
+nul
+.claude/
