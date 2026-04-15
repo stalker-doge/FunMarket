@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=file:/data/funmarket.db
     volumes:
       - db-data:/data
+    command: sh -c "npx drizzle-kit push && node server.js"
     restart: unless-stopped
 
 volumes:
