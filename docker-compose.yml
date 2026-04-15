@@ -1,18 +1,31 @@
 services:
+  migrate:
+    build:
+      context: .
+      target: migrator
+      network: host
+    environment:
+      - DATABASE_URL=file:/data/funmarket.db
+    volumes:
+      - db-data:/data
+
   app:
     build:
       context: .
+      target: runner
       network: host
     ports:
-      - "3000:3000"
+      - "[::]:3000:3000"
     environment:
       - AUTH_SECRET=${AUTH_SECRET}
       - DAILY_ALLOWANCE=${DAILY_ALLOWANCE:-1000}
       - DATABASE_URL=file:/data/funmarket.db
     volumes:
       - db-data:/data
-    command: sh -c "npx drizzle-kit push && node server.js"
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   db-data:

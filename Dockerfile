@@ -13,6 +13,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+# --- Migrator (full deps for drizzle-kit) ---
+FROM base AS migrator
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY drizzle.config.ts .
+COPY src/lib/db/schema.ts ./src/lib/db/schema.ts
+CMD ["npx", "drizzle-kit", "push"]
+
 # --- Runner ---
 FROM base AS runner
 WORKDIR /app
@@ -28,14 +36,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy native modules not included in standalone output
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@libsql ./node_modules/@libsql
-
-# Copy drizzle config and schema for migrations
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder /app/src/lib/db/schema.ts ./src/lib/db/schema.ts
-COPY --from=deps /app/node_modules/drizzle-kit ./node_modules/drizzle-kit
-COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
-COPY --from=deps /app/node_modules/@libsql ./node_modules/@libsql
-COPY --from=deps /app/node_modules/typescript ./node_modules/typescript
 
 # Create data directory for SQLite database
 RUN mkdir -p /data && chown nextjs:nodejs /data
