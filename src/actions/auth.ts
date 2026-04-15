@@ -13,15 +13,15 @@ import { loginSchema, registerSchema } from "@/lib/validators";
 
 const STARTING_BALANCE = 5000;
 
-function getClientIp(): string {
-  const hdrs = headers();
+async function getClientIp(): Promise<string> {
+  const hdrs = await headers();
   return (hdrs.get("x-forwarded-for")?.split(",")[0]?.trim())
     || hdrs.get("x-real-ip")
     || "unknown";
 }
 
 export async function registerAction(formData: FormData) {
-  const ip = getClientIp();
+  const ip = await getClientIp();
   const rateResult = registerLimiter.check(`register:${ip}`, 3, 60 * 60 * 1000);
   if (!rateResult.allowed) {
     return { error: "Too many registration attempts. Please try again later." };
@@ -65,7 +65,7 @@ export async function registerAction(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
-  const ip = getClientIp();
+  const ip = await getClientIp();
   const rateResult = loginLimiter.check(`login:${ip}`, 5, 15 * 60 * 1000);
   if (!rateResult.allowed) {
     return { error: "Too many login attempts. Please try again later." };
