@@ -14,8 +14,8 @@ services:
       context: .
       target: runner
       network: host
-    ports:
-      - "[::]:3000:3000"
+    expose:
+      - "3000"
     environment:
       - AUTH_SECRET=${AUTH_SECRET}
       - DAILY_ALLOWANCE=${DAILY_ALLOWANCE:-1000}
@@ -27,5 +27,20 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - app
+
 volumes:
   db-data:
+  caddy_data:
+  caddy_config:
