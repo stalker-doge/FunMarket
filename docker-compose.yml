@@ -14,8 +14,8 @@ services:
       context: .
       target: runner
       network: host
-    expose:
-      - "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
       - AUTH_SECRET=${AUTH_SECRET}
       - DAILY_ALLOWANCE=${DAILY_ALLOWANCE:-1000}
@@ -29,9 +29,7 @@ services:
 
   caddy:
     image: caddy:2
-    ports:
-      - "80:80"
-      - "443:443"
+    network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
