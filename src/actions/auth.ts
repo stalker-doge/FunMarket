@@ -7,23 +7,39 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { signToken, setSessionCookie, clearSessionCookie } from "@/lib/auth/jwt";
 import { getUser } from "@/lib/auth/session";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { loginLimiter, registerLimiter } from "@/lib/rate-limit";
+import { loginSchema, registerSchema } from "@/lib/validators";
 
 const STARTING_BALANCE = 5000;
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function getClientIp(): string {
+  const hdrs = headers();
+  return (hdrs.get("x-forwarded-for")?.split(",")[0]?.trim())
+    || hdrs.get("x-real-ip")
+    || "unknown";
+}
 
 export async function registerAction(formData: FormData) {
-  const username = (formData.get("username") as string)?.trim().toLowerCase();
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
-  const displayName = (formData.get("displayName") as string)?.trim();
-
-  if (!username || !email || !password || !displayName) {
-    return { error: "All fields are required" };
+  const ip = getClientIp();
+  const rateResult = registerLimiter.check(`register:${ip}`, 3, 60 * 60 * 1000);
+  if (!rateResult.allowed) {
+    return { error: "Too many registration attempts. Please try again later." };
   }
-  if (username.length < 3) return { error: "Username must be at least 3 characters" };
-  if (!EMAIL_REGEX.test(email)) return { error: "Please enter a valid email address" };
-  if (password.length < 4) return { error: "Password must be at least 4 characters" };
+
+  const raw = {
+    username: (formData.get("username") as string)?.trim().toLowerCase() ?? "",
+    email: (formData.get("email") as string)?.trim().toLowerCase() ?? "",
+    password: (formData.get("password") as string) ?? "",
+    displayName: (formData.get("displayName") as string)?.trim() ?? "",
+  };
+
+  const parsed = registerSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { username, email, password, displayName } = parsed.data;
 
   const existingUsername = await db.select().from(users).where(eq(users.username, username)).get();
   if (existingUsername) return { error: "Username already taken" };
@@ -49,12 +65,24 @@ export async function registerAction(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
-  const identifier = (formData.get("identifier") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
+  const ip = getClientIp();
+  const rateResult = loginLimiter.check(`login:${ip}`, 5, 15 * 60 * 1000);
+  if (!rateResult.allowed) {
+    return { error: "Too many login attempts. Please try again later." };
+  }
 
-  if (!identifier || !password) return { error: "Username/email and password are required" };
+  const raw = {
+    identifier: (formData.get("identifier") as string)?.trim().toLowerCase() ?? "",
+    password: (formData.get("password") as string) ?? "",
+  };
 
-  // Look up by username or email
+  const parsed = loginSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { identifier, password } = parsed.data;
+
   const user = await db.select().from(users).where(
     or(eq(users.username, identifier), eq(users.email, identifier))
   ).get();
