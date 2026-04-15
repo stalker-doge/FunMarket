@@ -34,10 +34,15 @@ const SLIDES = [
 export function OnboardingOverlay() {
   const [slide, setSlide] = useState(0);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleDismiss() {
+    setError(null);
     startTransition(async () => {
-      await completeOnboardingAction();
+      const result = await completeOnboardingAction();
+      if (result?.error) {
+        setError(result.error);
+      }
     });
   }
 
@@ -86,6 +91,9 @@ export function OnboardingOverlay() {
         </div>
 
         {/* Navigation */}
+        {error && (
+          <p className="text-xs text-red-500 text-center mb-3">{error}</p>
+        )}
         <div className="flex items-center justify-between">
           {slide > 0 ? (
             <button
