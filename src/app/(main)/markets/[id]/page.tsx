@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { getUser } from "@/lib/auth/session";
 import { getMarketById, getOutcomesByMarket } from "@/lib/db/queries/markets";
 import { getUserMarketHoldings } from "@/lib/db/queries/trades";
@@ -15,6 +16,7 @@ import { PriceChart } from "@/components/price-chart";
 import { WatchlistButton } from "@/components/watchlist-button";
 import { CommentSection } from "@/components/comment-section";
 import { ResolveButton } from "./resolve-button";
+import { DeleteButton } from "./delete-button";
 import { plain } from "@/lib/db";
 import { Calendar, User, CheckCircle, AlertTriangle, FileText } from "lucide-react";
 import type { Metadata } from "next";
@@ -96,10 +98,18 @@ export default async function MarketDetailPage({
   const outcomeLabels = marketOutcomes.map((o) => o.label);
   const outcomeColors = marketOutcomes.map((o) => o.color || "#8b5cf6");
 
-  const rawComments = plain(await getCommentsByMarket(marketId));
+  const { comments: rawComments } = await getCommentsByMarket(marketId);
+  const safeComments = plain(rawComments);
 
   return (
     <div className="space-y-6">
+      {/* Market image */}
+      {safeMarket.imageUrl && (
+        <div className="w-full h-48 md:h-64 rounded-2xl overflow-hidden relative">
+          <Image src={safeMarket.imageUrl} alt="" fill className="object-cover" />
+        </div>
+      )}
+
       {/* Enhanced header */}
       <div>
         <div className="flex items-start gap-3 mb-2">
@@ -209,7 +219,7 @@ export default async function MarketDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Trade panel */}
-        {isOpen && (
+        {isOpen && !isCreator && (
           <TradePanel
             outcomes={marketOutcomes}
             marketId={marketId}
@@ -268,10 +278,15 @@ export default async function MarketDetailPage({
         <ResolveButton outcomes={marketOutcomes} marketId={marketId} />
       )}
 
+      {/* Delete button for creator */}
+      {isCreator && isOpen && (
+        <DeleteButton marketId={marketId} />
+      )}
+
       {/* Comments */}
       <CommentSection
         marketId={marketId}
-        comments={rawComments}
+        comments={safeComments}
         currentUserId={safeUser.id}
       />
     </div>

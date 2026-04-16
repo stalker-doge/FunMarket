@@ -27,7 +27,8 @@ interface CommentSectionProps {
 
 function timeAgo(dateStr: string) {
   const now = new Date();
-  const date = new Date(dateStr);
+  // SQLite datetime('now') stores UTC without timezone suffix — append Z to parse as UTC
+  const date = new Date(dateStr.endsWith("Z") ? dateStr : dateStr + "Z");
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);

@@ -215,7 +215,7 @@ export function PriceChart({
   const latest = points.length > 0 ? points[points.length - 1].prices : rawLatest;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 shadow-lg relative overflow-hidden space-y-5">
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-lg relative space-y-5">
       {/* Top gradient accent */}
       <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary via-purple-500 to-primary" />
 
@@ -422,12 +422,18 @@ export function PriceChart({
             </svg>
 
             {/* HTML tooltip */}
-            {hovered !== null && hoverIdx !== null && (
+            {hovered !== null && hoverIdx !== null && (() => {
+              const pctX = (xPos(hoverIdx) / W) * 100;
+              // Flip left when past 60% to avoid right-edge overflow
+              const flipLeft = pctX > 60;
+              // Clamp so tooltip never exceeds the chart bounds
+              const clampedX = Math.max(5, Math.min(pctX, 95));
+              return (
               <div
                 className="absolute top-0 pointer-events-none z-10"
                 style={{
-                  left: `${((xPos(hoverIdx)) / W) * 100}%`,
-                  transform: hoverIdx > points.length / 2 ? "translateX(calc(-100% - 12px))" : "translateX(12px)",
+                  left: `${clampedX}%`,
+                  transform: flipLeft ? "translateX(calc(-100% - 12px))" : "translateX(12px)",
                   paddingTop: "4px",
                 }}
               >
@@ -454,7 +460,8 @@ export function PriceChart({
                   </div>
                 </div>
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       ) : (

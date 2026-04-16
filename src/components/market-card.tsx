@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import Image from "next/image";
 import { OutcomeBar } from "./outcome-bar";
 import { lmsrAllPrices } from "@/lib/market-engine/lmsr";
 import { getCategoryMeta } from "@/lib/categories";
@@ -48,8 +51,8 @@ export function MarketCard({
       <div className="group relative rounded-2xl border border-border bg-card overflow-hidden transition-all duration-300 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1">
         {/* Image thumbnail */}
         {imageUrl && (
-          <div className="h-32 w-full overflow-hidden bg-muted/30">
-            <img src={imageUrl} alt="" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <div className="h-32 w-full overflow-hidden bg-muted/30 relative">
+            <Image src={imageUrl} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
           </div>
         )}
 

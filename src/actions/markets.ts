@@ -1,7 +1,7 @@
 "use server";
 
 import { getUser } from "@/lib/auth/session";
-import { createMarket, getMarketById, getOutcomesByMarket } from "@/lib/db/queries/markets";
+import { createMarket, getMarketById, getOutcomesByMarket, deleteMarket } from "@/lib/db/queries/markets";
 import { getUserMarketHoldings } from "@/lib/db/queries/trades";
 import { getPriceHistory } from "@/lib/db/queries/price-history";
 import { logActivity } from "@/lib/db/queries/activity";
@@ -17,6 +17,17 @@ export async function createMarketAction(formData: FormData) {
   const description = (formData.get("description") as string)?.trim() || null;
   const category = (formData.get("category") as string) || "other";
   const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
+
+  if (imageUrl) {
+    try {
+      const parsed = new URL(imageUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        return { error: "Image URL must use http or https" };
+      }
+    } catch {
+      return { error: "Invalid image URL" };
+    }
+  }
   const closesAt = (formData.get("closesAt") as string) || null;
 
   const outcomeLabels: string[] = [];
@@ -75,4 +86,16 @@ export async function getMarketLiveAction(marketId: number) {
     priceHistory,
     userBalance: (await getUser())?.balance ?? 0,
   });
+}
+
+export async function deleteMarketAction(marketId: number) {
+  const user = await getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const market = await getMarketById(marketId);
+  if (!market) return { error: "Market not found" };
+  if (market.creatorId !== user.id) return { error: "Only the creator can delete this market" };
+
+  await deleteMarket(marketId);
+  redirect("/markets");
 }

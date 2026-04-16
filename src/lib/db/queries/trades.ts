@@ -10,6 +10,7 @@ export async function executeTrade(userId: number, outcomeId: number, quantity: 
   const market = await db.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
   if (!market) throw new Error("Market not found");
   if (market.status !== "open") throw new Error("Market is not open");
+  if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
   if (quantity <= 0) throw new Error("Quantity must be positive");
   if (quantity < 1) throw new Error("Minimum trade is 1 share");
 
@@ -101,6 +102,7 @@ export async function executeSell(userId: number, outcomeId: number, quantity: n
   const market = await db.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
   if (!market) throw new Error("Market not found");
   if (market.status !== "open") throw new Error("Market is not open");
+  if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
   if (quantity <= 0) throw new Error("Quantity must be positive");
 
   // Check user has enough shares

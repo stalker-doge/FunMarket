@@ -3,7 +3,7 @@ import { users, trades, outcomes, markets } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { lmsrPrice } from "@/lib/market-engine/lmsr";
 
-export async function getLeaderboard() {
+export async function getLeaderboard(limit: number = 50, offset: number = 0) {
   const allUsers = await db.select({
     id: users.id,
     username: users.username,
@@ -49,5 +49,5 @@ export async function getLeaderboard() {
     };
   }));
 
-  return rankings.sort((a, b) => b.netWorth - a.netWorth);
+  return rankings.sort((a, b) => b.netWorth - a.netWorth).slice(offset, offset + limit);
 }

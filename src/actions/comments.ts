@@ -4,6 +4,15 @@ import { getUser } from "@/lib/auth/session";
 import { createComment, deleteComment } from "@/lib/db/queries/comments";
 import { revalidatePath } from "next/cache";
 
+function sanitizeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 export async function createCommentAction(marketId: number, content: string, parentId?: number) {
   const user = await getUser();
   if (!user) return { error: "Not authenticated" };
@@ -12,8 +21,10 @@ export async function createCommentAction(marketId: number, content: string, par
   if (!trimmed) return { error: "Comment cannot be empty" };
   if (trimmed.length > 1000) return { error: "Comment too long (max 1000 characters)" };
 
+  const sanitized = sanitizeHtml(trimmed);
+
   try {
-    await createComment(user.id, marketId, trimmed, parentId);
+    await createComment(user.id, marketId, sanitized, parentId);
     revalidatePath(`/markets/${marketId}`);
     return { success: true };
   } catch (e: unknown) {

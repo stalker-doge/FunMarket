@@ -1,9 +1,15 @@
 import { db } from "@/lib/db";
 import { comments, users } from "@/lib/db/schema";
-import { eq, desc, isNull } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 
-export async function getCommentsByMarket(marketId: number) {
-  return db
+export async function getCommentsByMarket(marketId: number, limit: number = 50, offset: number = 0) {
+  const countResult = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(comments)
+    .where(eq(comments.marketId, marketId))
+    .get();
+
+  const rows = await db
     .select({
       id: comments.id,
       marketId: comments.marketId,
@@ -19,7 +25,11 @@ export async function getCommentsByMarket(marketId: number) {
     .innerJoin(users, eq(comments.userId, users.id))
     .where(eq(comments.marketId, marketId))
     .orderBy(desc(comments.createdAt))
+    .limit(limit)
+    .offset(offset)
     .all();
+
+  return { comments: rows, total: countResult?.count ?? 0 };
 }
 
 export async function createComment(userId: number, marketId: number, content: string, parentId?: number) {

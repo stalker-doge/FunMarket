@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { loginLimiter, registerLimiter } from "@/lib/rate-limit";
 import { loginSchema, registerSchema } from "@/lib/validators";
+import { logger } from "@/lib/logger";
 
 const STARTING_BALANCE = 5000;
 
@@ -24,6 +25,7 @@ export async function registerAction(formData: FormData) {
   const ip = await getClientIp();
   const rateResult = registerLimiter.check(`register:${ip}`, 3, 60 * 60 * 1000);
   if (!rateResult.allowed) {
+    logger.warn("Registration rate limited", { ip });
     return { error: "Too many registration attempts. Please try again later." };
   }
 
@@ -68,6 +70,7 @@ export async function loginAction(formData: FormData) {
   const ip = await getClientIp();
   const rateResult = loginLimiter.check(`login:${ip}`, 5, 15 * 60 * 1000);
   if (!rateResult.allowed) {
+    logger.warn("Login rate limited", { ip });
     return { error: "Too many login attempts. Please try again later." };
   }
 
@@ -86,10 +89,16 @@ export async function loginAction(formData: FormData) {
   const user = await db.select().from(users).where(
     or(eq(users.username, identifier), eq(users.email, identifier))
   ).get();
-  if (!user) return { error: "Invalid username/email or password" };
+  if (!user) {
+    logger.warn("Login failed: user not found", { ip, identifier });
+    return { error: "Invalid username/email or password" };
+  }
 
   const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) return { error: "Invalid username/email or password" };
+  if (!valid) {
+    logger.warn("Login failed: wrong password", { ip, userId: user.id });
+    return { error: "Invalid username/email or password" };
+  }
 
   const token = await signToken(user.id, user.username);
   await setSessionCookie(token);

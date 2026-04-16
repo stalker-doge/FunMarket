@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getLeaderboard } from "@/lib/db/queries/leaderboard";
 import { formatMoney } from "@/lib/utils";
 import { getAvatarUrl } from "@/lib/gravatar";
@@ -47,9 +48,11 @@ export default async function LeaderboardPage() {
                     </div>
                   </div>
                   <div className="mt-4 mb-3">
-                    <img
+                    <Image
                       src={getAvatarUrl(rankings[1].email, rankings[1].avatarUrl, 56)}
                       alt={rankings[1].displayName}
+                      width={56}
+                      height={56}
                       className="inline-flex h-14 w-14 rounded-full text-xl font-bold text-white shadow-lg ring-2 ring-slate-400/30"
                     />
                   </div>
@@ -75,9 +78,11 @@ export default async function LeaderboardPage() {
                     </div>
                   </div>
                   <div className="mt-6 mb-3">
-                    <img
+                    <Image
                       src={getAvatarUrl(rankings[0].email, rankings[0].avatarUrl, 64)}
                       alt={rankings[0].displayName}
+                      width={64}
+                      height={64}
                       className="inline-flex h-16 w-16 rounded-full text-2xl font-bold text-white shadow-xl shadow-yellow-400/30 ring-4 ring-yellow-400/20"
                     />
                   </div>
@@ -103,9 +108,11 @@ export default async function LeaderboardPage() {
                     </div>
                   </div>
                   <div className="mt-4 mb-3">
-                    <img
+                    <Image
                       src={getAvatarUrl(rankings[2].email, rankings[2].avatarUrl, 56)}
                       alt={rankings[2].displayName}
+                      width={56}
+                      height={56}
                       className="inline-flex h-14 w-14 rounded-full text-xl font-bold text-white shadow-lg ring-2 ring-orange-400/30"
                     />
                   </div>
@@ -145,9 +152,11 @@ export default async function LeaderboardPage() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <img
+                        <Image
                           src={getAvatarUrl(user.email, user.avatarUrl, 40)}
                           alt={user.displayName}
+                          width={40}
+                          height={40}
                           className="h-10 w-10 rounded-full shadow-lg shadow-primary/20 ring-2 ring-primary/20"
                         />
                         <div>

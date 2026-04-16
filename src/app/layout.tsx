@@ -36,6 +36,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-primary focus:text-primary-foreground">
+          Skip to main content
+        </a>
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

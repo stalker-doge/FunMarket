@@ -23,7 +23,7 @@ export default async function MainLayout({
         balance={safeUser.balance}
         avatarUrl={safeUser.avatarUrl}
       />
-      <main className="mx-auto max-w-6xl px-4 py-6 pb-20 sm:pb-6">{children}</main>
+      <main id="main-content" className="mx-auto max-w-6xl px-4 py-6 pb-20 sm:pb-6">{children}</main>
       <MobileBottomNav displayName={safeUser.displayName} />
     </>
   );

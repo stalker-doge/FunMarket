@@ -1,6 +1,6 @@
 type RateEntry = { count: number; resetAt: number };
 
-class RateLimiter {
+export class RateLimiter {
   private entries = new Map<string, RateEntry>();
 
   check(key: string, limit: number, windowMs: number): { allowed: boolean; retryAfterMs: number } {

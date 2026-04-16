@@ -1,7 +1,9 @@
 import { db } from "@/lib/db";
 import { markets, trades, outcomes, users } from "@/lib/db/schema";
 import { logActivity } from "@/lib/db/queries/activity";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
+
+const RESOLUTION_COOLDOWN_MS = 60 * 1000; // 1 minute cooldown after last trade
 
 export async function resolveMarket(marketId: number, winningOutcomeId: number, resolvedBy: number, resolutionNotes?: string) {
   const market = await db.select().from(markets).where(eq(markets.id, marketId)).get();
@@ -12,6 +14,24 @@ export async function resolveMarket(marketId: number, winningOutcomeId: number, 
   const winningOutcome = await db.select().from(outcomes).where(eq(outcomes.id, winningOutcomeId)).get();
   if (!winningOutcome || winningOutcome.marketId !== marketId) {
     throw new Error("Invalid outcome for this market");
+  }
+
+  // Cooldown: check if the creator traded recently on this market
+  const creatorLastTrade = await db
+    .select({ createdAt: trades.createdAt })
+    .from(trades)
+    .where(and(eq(trades.userId, resolvedBy), eq(trades.marketId, marketId)))
+    .orderBy(desc(trades.createdAt))
+    .limit(1)
+    .get();
+
+  if (creatorLastTrade) {
+    const lastTradeTime = new Date(creatorLastTrade.createdAt).getTime();
+    const timeSinceTrade = Date.now() - lastTradeTime;
+    if (timeSinceTrade < RESOLUTION_COOLDOWN_MS) {
+      const waitSeconds = Math.ceil((RESOLUTION_COOLDOWN_MS - timeSinceTrade) / 1000);
+      throw new Error(`Please wait ${waitSeconds} seconds after your last trade before resolving`);
+    }
   }
 
   // Set market as resolved

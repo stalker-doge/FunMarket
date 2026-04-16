@@ -53,7 +53,7 @@ export function NavBar({ username, displayName, email, balance, avatarUrl }: Nav
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl bg-card/70">
+    <nav className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl bg-card/70" aria-label="Main navigation">
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5 pointer-events-none" />
       <div className="mx-auto max-w-6xl px-4 relative">
         <div className="flex h-16 items-center justify-between">
@@ -134,6 +134,7 @@ export function NavBar({ username, displayName, email, balance, avatarUrl }: Nav
               <button
                 type="submit"
                 className="text-sm text-muted-foreground hover:text-destructive transition-colors px-2"
+                aria-label="Logout"
               >
                 Logout
               </button>

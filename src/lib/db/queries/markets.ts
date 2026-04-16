@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { markets, outcomes, users, trades } from "@/lib/db/schema";
+import { markets, outcomes, users, trades, comments, watchlist, activityLog } from "@/lib/db/schema";
 import { eq, desc, and, or, like, sql, SQL } from "drizzle-orm";
 
 export async function getOpenMarkets() {
@@ -92,6 +92,16 @@ export async function createMarket(
   return marketId;
 }
 
+export async function deleteMarket(marketId: number) {
+  // Delete in order to respect foreign keys: trades -> outcomes -> comments/watchlist -> market
+  await db.delete(trades).where(eq(trades.marketId, marketId));
+  await db.delete(outcomes).where(eq(outcomes.marketId, marketId));
+  await db.delete(comments).where(eq(comments.marketId, marketId));
+  await db.delete(watchlist).where(eq(watchlist.marketId, marketId));
+  await db.delete(activityLog).where(eq(activityLog.marketId, marketId));
+  await db.delete(markets).where(eq(markets.id, marketId));
+}
+
 export async function getAllMarkets() {
   return db
     .select({
@@ -137,9 +147,11 @@ export async function searchMarkets(opts: {
     conditions.push(eq(markets.status, status));
   }
   if (query) {
+    const escaped = query.replace(/%/g, "\\%").replace(/_/g, "\\_");
+    const pattern = `%${escaped}%`;
     conditions.push(or(
-      like(markets.question, `%${query}%`),
-      like(markets.description, `%${query}%`)
+      like(markets.question, pattern),
+      like(markets.description, pattern)
     )!);
   }
   if (category && category !== "all") {
