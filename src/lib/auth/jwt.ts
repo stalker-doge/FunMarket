@@ -1,16 +1,17 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.AUTH_SECRET;
-
+let _secret: Uint8Array | null = null;
 function getSecret() {
-  if (!AUTH_SECRET) {
-    throw new Error("AUTH_SECRET environment variable is required. Set it in .env or .env.local");
+  if (!_secret) {
+    const secret = process.env.AUTH_SECRET;
+    if (!secret) {
+      throw new Error("AUTH_SECRET environment variable is required. Set it in .env or .env.local");
+    }
+    _secret = new TextEncoder().encode(secret);
   }
-  return new TextEncoder().encode(AUTH_SECRET);
+  return _secret;
 }
-
-const SECRET = getSecret();
 export const COOKIE_NAME = "funmarket-session";
 
 export async function signToken(userId: number, username: string): Promise<string> {
@@ -18,11 +19,11 @@ export async function signToken(userId: number, username: string): Promise<strin
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .setIssuedAt()
-    .sign(SECRET);
+    .sign(getSecret());
 }
 
 export async function verifyToken(token: string) {
-  return jwtVerify(token, SECRET);
+  return jwtVerify(token, getSecret());
 }
 
 export async function setSessionCookie(token: string) {
