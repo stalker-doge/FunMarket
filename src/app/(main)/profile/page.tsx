@@ -7,6 +7,7 @@ import { formatMoney, cn } from "@/lib/utils";
 import { getAvatarUrl } from "@/lib/gravatar";
 import { AllowanceBanner } from "@/components/allowance-banner";
 import { AchievementsDisplay } from "@/components/achievements-display";
+import { AvatarUpload } from "@/components/avatar-upload";
 import { ExportButton } from "@/components/export-button";
 import { ProfileEditor } from "@/components/profile-editor";
 import { plain } from "@/lib/db";
@@ -85,14 +86,11 @@ export default async function ProfilePage() {
 
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
           <div className="relative">
-            <img
+            <AvatarUpload
               src={getAvatarUrl(safeUser.email, safeUser.avatarUrl, 96)}
               alt={safeUser.displayName}
-              className="h-20 w-20 rounded-full shadow-xl shadow-primary/20 ring-4 ring-primary/20"
+              size={80}
             />
-            <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center ring-2 ring-card">
-              <span className="text-[10px] font-bold text-white">{safeUser.displayName.charAt(0).toUpperCase()}</span>
-            </div>
           </div>
 
           <div className="flex-1 min-w-0">
