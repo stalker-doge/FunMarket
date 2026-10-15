@@ -16,6 +16,7 @@ const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
   { value: "most_traded", label: "Most Traded" },
   { value: "highest_volume", label: "Highest Volume" },
+  { value: "closing_soon", label: "Closing Soon" },
 ];
 
 export function MarketFilters() {

@@ -8,27 +8,12 @@ import { logActivity } from "@/lib/db/queries/activity";
 import { lmsrAllPrices } from "@/lib/market-engine/lmsr";
 import { plain } from "@/lib/db";
 import { redirect } from "next/navigation";
+import { marketSchema } from "@/lib/validators";
+import { checkAndAwardAchievements } from "@/lib/achievements/checker";
 
 export async function createMarketAction(formData: FormData) {
   const user = await getUser();
   if (!user) return { error: "Not authenticated" };
-
-  const question = (formData.get("question") as string)?.trim();
-  const description = (formData.get("description") as string)?.trim() || null;
-  const category = (formData.get("category") as string) || "other";
-  const imageUrl = (formData.get("imageUrl") as string)?.trim() || null;
-
-  if (imageUrl) {
-    try {
-      const parsed = new URL(imageUrl);
-      if (!["http:", "https:"].includes(parsed.protocol)) {
-        return { error: "Image URL must use http or https" };
-      }
-    } catch {
-      return { error: "Invalid image URL" };
-    }
-  }
-  const closesAt = (formData.get("closesAt") as string) || null;
 
   const outcomeLabels: string[] = [];
   let i = 0;
@@ -40,12 +25,26 @@ export async function createMarketAction(formData: FormData) {
     i++;
   }
 
-  if (!question) return { error: "Question is required" };
-  if (outcomeLabels.length < 2) return { error: "At least 2 outcomes are required" };
+  const raw = {
+    question: (formData.get("question") as string)?.trim() ?? "",
+    description: (formData.get("description") as string)?.trim() || null,
+    category: (formData.get("category") as string) || "other",
+    imageUrl: (formData.get("imageUrl") as string)?.trim() || null,
+    closesAt: (formData.get("closesAt") as string) || null,
+    outcomes: outcomeLabels,
+  };
 
-  const marketId = await createMarket(user.id, question, description, outcomeLabels, closesAt, category, imageUrl);
+  const parsed = marketSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { question, description, category, imageUrl, closesAt, outcomes } = parsed.data;
+
+  const marketId = await createMarket(user.id, question, description, outcomes, closesAt, category, imageUrl);
 
   await logActivity({ type: "market_created", userId: user.id, marketId });
+  await checkAndAwardAchievements(user.id);
 
   redirect(`/markets/${marketId}`);
 }

@@ -34,3 +34,4 @@ export const registerLimiter = new RateLimiter();
 export const marketCreateLimiter = new RateLimiter();
 export const commentLimiter = new RateLimiter();
 export const tradeLimiter = new RateLimiter();
+export const avatarLimiter = new RateLimiter();

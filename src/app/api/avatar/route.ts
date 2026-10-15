@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { avatarLimiter } from "@/lib/rate-limit";
 
 const AVATAR_DIR = process.env.AVATAR_DIR || join(process.cwd(), "data", "avatars");
 
@@ -18,6 +20,16 @@ function resolveAvatarDir(): string {
 }
 
 export async function GET(req: NextRequest) {
+  // Rate limiting
+  const hdrs = await headers();
+  const ip = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || hdrs.get("x-real-ip")
+    || "unknown";
+  const rateResult = avatarLimiter.check(`avatar:${ip}`, 30, 60 * 1000);
+  if (!rateResult.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const username = req.nextUrl.searchParams.get("u");
   if (!username) {
     return NextResponse.json({ error: "Missing username" }, { status: 400 });

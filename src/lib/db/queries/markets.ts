@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { markets, outcomes, users, trades, comments, watchlist, activityLog } from "@/lib/db/schema";
-import { eq, desc, and, or, like, sql, SQL } from "drizzle-orm";
+import { eq, desc, and, or, like, sql, SQL, asc } from "drizzle-orm";
 
 export async function getOpenMarkets() {
   return db
@@ -123,7 +123,7 @@ export async function getAllMarkets() {
     .all();
 }
 
-type MarketSort = "newest" | "most_traded" | "highest_volume";
+type MarketSort = "newest" | "most_traded" | "highest_volume" | "closing_soon";
 
 export async function searchMarkets(opts: {
   query?: string;
@@ -165,7 +165,20 @@ export async function searchMarkets(opts: {
       ? sql`COUNT(DISTINCT ${trades.id}) DESC`
       : sql`COALESCE(SUM(${trades.quantity}), 0) DESC`;
 
-    const baseQuery = db
+    // Count query
+    const countBase = db
+      .select({ count: sql<number>`COUNT(DISTINCT ${markets.id})` })
+      .from(markets)
+      .innerJoin(users, eq(markets.creatorId, users.id))
+      .leftJoin(trades, eq(trades.marketId, markets.id));
+
+    const countResult = where
+      ? await countBase.where(where).get()
+      : await countBase.get();
+    const total = countResult?.count ?? 0;
+
+    // Data query with real pagination
+    const dataQuery = db
       .select({
         id: markets.id,
         question: markets.question,
@@ -183,15 +196,72 @@ export async function searchMarkets(opts: {
       .innerJoin(users, eq(markets.creatorId, users.id))
       .leftJoin(trades, eq(trades.marketId, markets.id))
       .groupBy(markets.id)
-      .orderBy(sortExpr);
+      .orderBy(sortExpr)
+      .limit(limit)
+      .offset((page - 1) * limit);
 
-    const allResults = where
-      ? await baseQuery.where(where).all()
-      : await baseQuery.all();
+    const results = where
+      ? await dataQuery.where(where).all()
+      : await dataQuery.all();
 
-    const total = allResults.length;
-    const paged = allResults.slice((page - 1) * limit, page * limit);
-    return { markets: paged, total };
+    return { markets: results, total };
+  }
+
+  if (sort === "closing_soon") {
+    // Only open markets with a closesAt date, sorted by closesAt ASC
+    conditions.push(eq(markets.status, "open"));
+    conditions.push(sql`${markets.closesAt} IS NOT NULL`);
+    const closingWhere = and(...conditions);
+
+    const countResult = closingWhere
+      ? await db.select({ count: sql<number>`COUNT(*)` }).from(markets).where(closingWhere).get()
+      : await db.select({ count: sql<number>`COUNT(*)` }).from(markets).get();
+    const total = countResult?.count ?? 0;
+
+    const results = closingWhere
+      ? await db
+          .select({
+            id: markets.id,
+            question: markets.question,
+            description: markets.description,
+            category: markets.category,
+            imageUrl: markets.imageUrl,
+            status: markets.status,
+            closesAt: markets.closesAt,
+            createdAt: markets.createdAt,
+            creatorName: users.displayName,
+            creatorUsername: users.username,
+            resolutionOutcomeId: markets.resolutionOutcomeId,
+          })
+          .from(markets)
+          .innerJoin(users, eq(markets.creatorId, users.id))
+          .where(closingWhere)
+          .orderBy(asc(markets.closesAt))
+          .limit(limit)
+          .offset((page - 1) * limit)
+          .all()
+      : await db
+          .select({
+            id: markets.id,
+            question: markets.question,
+            description: markets.description,
+            category: markets.category,
+            imageUrl: markets.imageUrl,
+            status: markets.status,
+            closesAt: markets.closesAt,
+            createdAt: markets.createdAt,
+            creatorName: users.displayName,
+            creatorUsername: users.username,
+            resolutionOutcomeId: markets.resolutionOutcomeId,
+          })
+          .from(markets)
+          .innerJoin(users, eq(markets.creatorId, users.id))
+          .orderBy(asc(markets.closesAt))
+          .limit(limit)
+          .offset((page - 1) * limit)
+          .all();
+
+    return { markets: results, total };
   }
 
   // Default: sort by newest

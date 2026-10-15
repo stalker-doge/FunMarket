@@ -3,6 +3,7 @@
 import { getUser } from "@/lib/auth/session";
 import { createComment, deleteComment } from "@/lib/db/queries/comments";
 import { revalidatePath } from "next/cache";
+import { checkAndAwardAchievements } from "@/lib/achievements/checker";
 
 function sanitizeHtml(text: string): string {
   return text
@@ -26,6 +27,7 @@ export async function createCommentAction(marketId: number, content: string, par
   try {
     await createComment(user.id, marketId, sanitized, parentId);
     revalidatePath(`/markets/${marketId}`);
+    await checkAndAwardAchievements(user.id);
     return { success: true };
   } catch (e: unknown) {
     return { error: (e as Error).message };

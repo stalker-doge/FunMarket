@@ -4,48 +4,47 @@ import { eq, and, sql, desc } from "drizzle-orm";
 import { lmsrBuyCost, lmsrSellCost } from "@/lib/market-engine/lmsr";
 
 export async function executeTrade(userId: number, outcomeId: number, quantity: number) {
-  const outcome = await db.select().from(outcomes).where(eq(outcomes.id, outcomeId)).get();
-  if (!outcome) throw new Error("Outcome not found");
+  return db.transaction(async (tx) => {
+    const outcome = await tx.select().from(outcomes).where(eq(outcomes.id, outcomeId)).get();
+    if (!outcome) throw new Error("Outcome not found");
 
-  const market = await db.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
-  if (!market) throw new Error("Market not found");
-  if (market.status !== "open") throw new Error("Market is not open");
-  if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
-  if (quantity <= 0) throw new Error("Quantity must be positive");
-  if (quantity < 1) throw new Error("Minimum trade is 1 share");
+    const market = await tx.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
+    if (!market) throw new Error("Market not found");
+    if (market.status !== "open") throw new Error("Market is not open");
+    if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
+    if (quantity <= 0) throw new Error("Quantity must be positive");
+    if (quantity < 1) throw new Error("Minimum trade is 1 share");
 
-  const allOutcomes = await db.select().from(outcomes).where(eq(outcomes.marketId, market.id)).all();
-  const sharesArray = allOutcomes.map((o) => o.sharesOutstanding);
-  const outcomeIndex = allOutcomes.findIndex((o) => o.id === outcomeId);
+    const allOutcomes = await tx.select().from(outcomes).where(eq(outcomes.marketId, market.id)).all();
+    const sharesArray = allOutcomes.map((o) => o.sharesOutstanding);
+    const outcomeIndex = allOutcomes.findIndex((o) => o.id === outcomeId);
 
-  const cost = lmsrBuyCost(sharesArray, market.liquidityParam, outcomeIndex, quantity);
-  const avgPrice = cost / quantity;
+    const cost = lmsrBuyCost(sharesArray, market.liquidityParam, outcomeIndex, quantity);
+    const avgPrice = cost / quantity;
 
-  const user = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (!user) throw new Error("User not found");
-  if (user.balance < cost) throw new Error("Insufficient balance");
+    const user = await tx.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) throw new Error("User not found");
+    if (user.balance < cost) throw new Error("Insufficient balance");
 
-  // Insert trade
-  await db.insert(trades).values({
-    userId,
-    outcomeId,
-    marketId: market.id,
-    quantity,
-    avgPrice,
-    totalCost: cost,
+    await tx.insert(trades).values({
+      userId,
+      outcomeId,
+      marketId: market.id,
+      quantity,
+      avgPrice,
+      totalCost: cost,
+    });
+
+    await tx.update(outcomes)
+      .set({ sharesOutstanding: outcome.sharesOutstanding + quantity })
+      .where(eq(outcomes.id, outcomeId));
+
+    await tx.update(users)
+      .set({ balance: user.balance - cost })
+      .where(eq(users.id, userId));
+
+    return { cost, avgPrice, quantity, marketId: market.id };
   });
-
-  // Update outcome shares
-  await db.update(outcomes)
-    .set({ sharesOutstanding: outcome.sharesOutstanding + quantity })
-    .where(eq(outcomes.id, outcomeId));
-
-  // Deduct from user balance
-  await db.update(users)
-    .set({ balance: user.balance - cost })
-    .where(eq(users.id, userId));
-
-  return { cost, avgPrice, quantity };
 }
 
 export async function getUserHoldings(userId: number) {
@@ -96,59 +95,57 @@ export async function previewTrade(outcomeId: number, quantity: number) {
 }
 
 export async function executeSell(userId: number, outcomeId: number, quantity: number) {
-  const outcome = await db.select().from(outcomes).where(eq(outcomes.id, outcomeId)).get();
-  if (!outcome) throw new Error("Outcome not found");
+  return db.transaction(async (tx) => {
+    const outcome = await tx.select().from(outcomes).where(eq(outcomes.id, outcomeId)).get();
+    if (!outcome) throw new Error("Outcome not found");
 
-  const market = await db.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
-  if (!market) throw new Error("Market not found");
-  if (market.status !== "open") throw new Error("Market is not open");
-  if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
-  if (quantity <= 0) throw new Error("Quantity must be positive");
+    const market = await tx.select().from(markets).where(eq(markets.id, outcome.marketId)).get();
+    if (!market) throw new Error("Market not found");
+    if (market.status !== "open") throw new Error("Market is not open");
+    if (market.creatorId === userId) throw new Error("You cannot trade in your own market");
+    if (quantity <= 0) throw new Error("Quantity must be positive");
 
-  // Check user has enough shares
-  const holding = await db
-    .select({
-      totalShares: sql<number>`COALESCE(SUM(${trades.quantity}), 0)`,
-    })
-    .from(trades)
-    .where(and(eq(trades.userId, userId), eq(trades.outcomeId, outcomeId)))
-    .get();
+    const holding = await tx
+      .select({
+        totalShares: sql<number>`COALESCE(SUM(${trades.quantity}), 0)`,
+      })
+      .from(trades)
+      .where(and(eq(trades.userId, userId), eq(trades.outcomeId, outcomeId)))
+      .get();
 
-  const heldShares = holding?.totalShares ?? 0;
-  if (heldShares < quantity) throw new Error("Not enough shares to sell");
+    const heldShares = holding?.totalShares ?? 0;
+    if (heldShares < quantity) throw new Error("Not enough shares to sell");
 
-  const allOutcomes = await db.select().from(outcomes).where(eq(outcomes.marketId, market.id)).all();
-  const sharesArray = allOutcomes.map((o) => o.sharesOutstanding);
-  const outcomeIndex = allOutcomes.findIndex((o) => o.id === outcomeId);
+    const allOutcomes = await tx.select().from(outcomes).where(eq(outcomes.marketId, market.id)).all();
+    const sharesArray = allOutcomes.map((o) => o.sharesOutstanding);
+    const outcomeIndex = allOutcomes.findIndex((o) => o.id === outcomeId);
 
-  const refund = lmsrSellCost(sharesArray, market.liquidityParam, outcomeIndex, quantity);
-  if (refund < 0) throw new Error("Invalid sell: negative refund");
-  const avgPrice = refund / quantity;
+    const refund = lmsrSellCost(sharesArray, market.liquidityParam, outcomeIndex, quantity);
+    if (refund < 0) throw new Error("Invalid sell: negative refund");
+    const avgPrice = refund / quantity;
 
-  // Insert sell trade with negative quantity
-  await db.insert(trades).values({
-    userId,
-    outcomeId,
-    marketId: market.id,
-    quantity: -quantity,
-    avgPrice,
-    totalCost: -refund,
-    tradeType: "sell",
+    await tx.insert(trades).values({
+      userId,
+      outcomeId,
+      marketId: market.id,
+      quantity: -quantity,
+      avgPrice,
+      totalCost: -refund,
+      tradeType: "sell",
+    });
+
+    await tx.update(outcomes)
+      .set({ sharesOutstanding: Math.max(0, outcome.sharesOutstanding - quantity) })
+      .where(eq(outcomes.id, outcomeId));
+
+    const user = await tx.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) throw new Error("User not found");
+    await tx.update(users)
+      .set({ balance: user.balance + refund })
+      .where(eq(users.id, userId));
+
+    return { refund, avgPrice, quantity, marketId: market.id };
   });
-
-  // Decrease outcome shares outstanding
-  await db.update(outcomes)
-    .set({ sharesOutstanding: Math.max(0, outcome.sharesOutstanding - quantity) })
-    .where(eq(outcomes.id, outcomeId));
-
-  // Add refund to user balance
-  const user = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (!user) throw new Error("User not found");
-  await db.update(users)
-    .set({ balance: user.balance + refund })
-    .where(eq(users.id, userId));
-
-  return { refund, avgPrice, quantity };
 }
 
 export async function getRecentTrades(userId: number, limit: number = 10) {

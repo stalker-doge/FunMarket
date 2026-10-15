@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -27,7 +27,10 @@ export const markets = sqliteTable("markets", {
   closesAt: text("closes_at"),
   liquidityParam: real("liquidity_param").notNull().default(100),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => ({
+  marketsCreatorIdIdx: index("markets_creator_id_idx").on(t.creatorId),
+  marketsStatusIdx: index("markets_status_idx").on(t.status),
+}));
 
 export const outcomes = sqliteTable("outcomes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -36,7 +39,9 @@ export const outcomes = sqliteTable("outcomes", {
   color: text("color"),
   sharesOutstanding: real("shares_outstanding").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => ({
+  outcomesMarketIdIdx: index("outcomes_market_id_idx").on(t.marketId),
+}));
 
 export const trades = sqliteTable("trades", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -48,7 +53,10 @@ export const trades = sqliteTable("trades", {
   totalCost: real("total_cost").notNull(),
   tradeType: text("trade_type").notNull().default("buy"),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => ({
+  tradesUserIdIdx: index("trades_user_id_idx").on(t.userId),
+  tradesMarketIdIdx: index("trades_market_id_idx").on(t.marketId),
+}));
 
 export const allowanceLog = sqliteTable("allowance_log", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -62,7 +70,9 @@ export const watchlist = sqliteTable("watchlist", {
   userId: integer("user_id").notNull().references(() => users.id),
   marketId: integer("market_id").notNull().references(() => markets.id),
   createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
-});
+}, (t) => ({
+  watchlistUserIdIdx: index("watchlist_user_id_idx").on(t.userId),
+}));
 
 export const comments = sqliteTable("comments", {
   id: integer("id").primaryKey({ autoIncrement: true }),

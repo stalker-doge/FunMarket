@@ -23,6 +23,7 @@ export function lmsrPrice(
   const maxQ = Math.max(...sharesOutstanding);
   const exps = sharesOutstanding.map((q) => safeExp((q - maxQ) / b));
   const sumExps = exps.reduce((a, b) => a + b, 0);
+  if (sumExps === 0) return 0;
   return exps[outcomeIndex] / sumExps;
 }
 
@@ -50,9 +51,12 @@ export function lmsrSellCost(
   const before = lmsrCost(sharesOutstanding, b);
   const afterShares = [...sharesOutstanding];
   afterShares[outcomeIndex] -= quantity;
+  if (afterShares[outcomeIndex] < 0) {
+    throw new Error("Cannot sell more shares than are outstanding");
+  }
   const after = lmsrCost(afterShares, b);
   // Selling decreases total cost, so refund = before - after
-  return before - after;
+  return Math.max(0, before - after);
 }
 
 /** Get all outcome prices as percentages (0-1) */

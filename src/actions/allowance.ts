@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { users, allowanceLog } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { canClaimAllowance, getDailyAllowanceAmount } from "@/lib/allowance";
+import { checkAndAwardAchievements } from "@/lib/achievements/checker";
 
 export async function claimAllowanceAction() {
   const user = await getUser();
@@ -28,6 +29,8 @@ export async function claimAllowanceAction() {
     userId: user.id,
     amount,
   });
+
+  await checkAndAwardAchievements(user.id);
 
   return { success: true, amount, newBalance: user.balance + amount };
 }
